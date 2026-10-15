@@ -1,0 +1,347 @@
+local replicatedStorage = game:GetService("ReplicatedStorage")
+local interfaceTrigger = replicatedStorage:WaitForChild("SharedPackage"):WaitForChild("Packages"):WaitForChild("ControllerPackage"):WaitForChild("ReplicationController"):WaitForChild("RemoteEvents"):WaitForChild("InterfaceTrigger")
+local upgradeEvent = replicatedStorage:WaitForChild("SharedPackage"):WaitForChild("Packages"):WaitForChild("ControllerPackage"):WaitForChild("ReplicationController"):WaitForChild("RemoteEvents"):WaitForChild("Upgrade")
+local interfaceTeleport = replicatedStorage:WaitForChild("SharedPackage"):WaitForChild("Packages"):WaitForChild("ControllerPackage"):WaitForChild("ReplicationController"):WaitForChild("RemoteEvents"):WaitForChild("InterfaceTeleport")
+local BuyCoins = replicatedStorage:WaitForChild("SharedPackage"):WaitForChild("Packages"):WaitForChild("ControllerPackage"):WaitForChild("ReplicationController"):WaitForChild("RemoteEvents"):WaitForChild("CoinShop")
+local player = game.Players.LocalPlayer
+local workspace = game:GetService("Workspace")
+local visitedModels = {}
+local recentCleanedPositions = {}
+local currentTargetModel = nil
+local PULSE_SECONDS = 0.02
+local MOVE_KEYS = {0x57, 0x41, 0x53, 0x44}
+local targetItems = {"CandyCrate", "SmashablePumpkin"}
+local candyCount = 0
+local function tapKey(vk, seconds)
+    pcall(keypress, vk)
+    task.wait(seconds)
+    pcall(keyrelease, vk)
+end
+local function isCharacterReady(char)
+    if not char then return false, nil end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if hrp and hum and hum.Health > 0 then
+        return true, hrp
+    end
+    return false, nil
+end
+local function getWreckContainer()
+    local containers = workspace:FindFirstChild("Containers")
+    if not containers then return nil end
+    local tsContainer = containers:FindFirstChild("TrainStationContainer")
+    if not tsContainer then return nil end
+    local rsContainer = tsContainer:FindFirstChild("RuinedStationContainer")
+    if not rsContainer then return nil end
+    return rsContainer:FindFirstChild("WreckContainer")
+end
+local function findWreckModelAndPosition()
+    local wreckContainer = getWreckContainer()
+    if not wreckContainer then return nil, nil end
+    local tiersToSearch = {}
+    for i = 1, 5 do
+        if UI.GetValue("mine_tier" .. i) then
+            table.insert(tiersToSearch, "Tier" .. i)
+        end
+    end
+    for _, tierName in ipairs(tiersToSearch) do
+        local tierFolder = wreckContainer:FindFirstChild(tierName)
+        if tierFolder then
+            for _, obj in pairs(tierFolder:GetDescendants()) do
+                if obj.Name == "WreckModel" and not visitedModels[obj] then
+                    local lowestY = math.huge
+                    local lowestPos = nil
+                    for _, part in pairs(obj:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            local success, cf = pcall(function() return part.CFrame end)
+                            if success and cf then
+                                local pos = cf.Position
+                                if pos and pos.Y < lowestY then
+                                    lowestY = pos.Y
+                                    lowestPos = pos
+                                end
+                            end
+                        end
+                    end
+                    if lowestPos then
+                        if lowestPos.Y < -500 then
+                            visitedModels[obj] = true
+                        else
+                            local skipThis = false
+                            local currentTime = os.clock()
+                            for _, data in ipairs(recentCleanedPositions) do
+                                if currentTime - data.time < 20 and (data.pos - lowestPos).Magnitude < 15 then
+                                    skipThis = true
+                                    break
+                                end
+                            end
+                            if not skipThis then
+                                return lowestPos, obj
+                            else
+                                visitedModels[obj] = true
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return nil, nil
+end
+UI.AddTab("RE:HUB", function(tab)
+    local script1 = tab:Section("Auto Upgrade (REQUIRES HYBRID MODE!)", "Left")
+    script1:Tip("Select upgrades to run automatically. Avoid maxed level 10 upgrades.")
+    script1:Spacing()
+    script1:Spacing()
+    script1:Toggle("upg_on", "Enable auto upgrade", false, function(state)
+        if state then
+            interfaceTrigger:FireServer("CoinUpgrade", "Cutscene-OFF")
+        end
+    end)
+    script1:Keybind("upg_kb", 0, "toggle")
+    script1:Toggle("upg_1", "MoneyEarn", false)
+    script1:Toggle("upg_2", "FlipSpeed", false)
+    script1:Toggle("upg_3", "CriticalMultiply", false)
+    script1:Toggle("upg_4", "CriticalChance", false)
+    script1:Toggle("upg_5", "HeadChance", false)
+    local script3 = tab:Section("Candy Farm", "Left")
+    script3:Tip("Teleports to candy buckets and pumpkins automatically.")
+    script3:Spacing()
+    script3:Spacing()
+    script3:Toggle("candy_on", "Enable candy farm", false)
+    script3:Keybind("candy_kb", 0, "toggle")
+    local script2 = tab:Section("Auto Mine (WORK IN PROGRESS)", "Right")
+    script2:Tip("Automatically teleports to and mines underwater rocks.")
+    script2:Spacing()
+    script2:Spacing()
+    script2:Toggle("wreck_on", "Enable auto mine", false)
+    script2:Keybind("wreck_kb", 0, "toggle")
+    script2:Toggle("mine_tier1", "Tier 1", false)
+    script2:Toggle("mine_tier2", "Tier 2", false)
+    script2:Toggle("mine_tier3", "Tier 3", false)
+    script2:Toggle("mine_tier4", "Tier 4", false)
+    script2:Toggle("mine_tier5", "Tier 5", false)
+    local script4 = tab:Section("Auto Bank", "Right")
+    script4:Tip("Automatically buys coins for your money to hide real money count.")
+    script4:Spacing()
+    script4:Spacing()
+    script4:Toggle("bank_on", "Enable Auto Bank", false)
+    script4:Keybind("bank_kb", 0, "toggle")
+    script4:InputText("bank_freq_val", "Frequency (sec)", "0")
+    script4:InputText("bank_amt_val", "Amount", "0")
+end)
+UI.SetValue("upg_on", false)
+UI.SetValue("upg_1", false)
+UI.SetValue("upg_2", false)
+UI.SetValue("upg_3", false)
+UI.SetValue("upg_4", false)
+UI.SetValue("upg_5", false)
+UI.SetValue("bank_freq_val", "0")
+UI.SetValue("bank_amt_val", "0")
+task.spawn(function()
+    while true do
+        if UI.GetValue("upg_on") then
+            for i = 1, 5 do
+                if not UI.GetValue("upg_on") then break end
+                if UI.GetValue("upg_" .. i) then
+                    upgradeEvent:FireServer(i)
+                end
+            end
+        end
+        task.wait(0.1)
+    end
+end)
+task.spawn(function()
+    math.randomseed(math.floor(os.clock() * 100000))
+    while true do
+        if UI.GetValue("wreck_on") or UI.GetValue("candy_on") then
+            local vk = MOVE_KEYS[math.random(1, #MOVE_KEYS)]
+            tapKey(vk, PULSE_SECONDS)
+        end
+        task.wait(60)
+    end
+end)
+task.spawn(function()
+    while true do
+        if UI.GetValue("wreck_on") then
+            local character = player.Character
+            if character then
+                for _, part in pairs(character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        pcall(function()
+                            part.CanCollide = false
+                        end)
+                    end
+                end
+            end
+        end
+        task.wait(0.2)
+    end
+end)
+task.spawn(function()
+    local timeElapsed = 0
+    while true do
+        task.wait(1)
+        if UI.GetValue("wreck_on") then
+            timeElapsed = timeElapsed + 1
+            if timeElapsed >= 600 then
+                visitedModels = {}
+                recentCleanedPositions = {}
+                currentTargetModel = nil
+                local character = player.Character
+                if character then
+                    local humanoid = character:FindFirstChildOfClass("Humanoid")
+                    if humanoid then
+                        humanoid.Health = 0
+                    end
+                end
+                timeElapsed = 0
+            end
+        else
+            timeElapsed = 0
+        end
+    end
+end)
+task.spawn(function()
+    local needsWaypoint = true
+    while true do
+        if UI.GetValue("wreck_on") then
+            local ready, hrp = isCharacterReady(player.Character)
+            if not ready then
+                currentTargetModel = nil
+                needsWaypoint = true
+                repeat
+                    task.wait(0.5)
+                    local r = isCharacterReady(player.Character)
+                until r or not UI.GetValue("wreck_on")
+                task.wait(1.5)
+                continue
+            end
+            if needsWaypoint then
+                interfaceTeleport:FireServer("Teleport", "Mine Shop")
+                hrp.CFrame = CFrame.new(4520, 101, -760)
+                task.wait(1)
+                needsWaypoint = false
+                continue
+            end
+            local targetPos, targetModel = findWreckModelAndPosition()
+            if targetPos and targetModel then
+                local readyNow, currentHrp = isCharacterReady(player.Character)
+                if readyNow then
+                    local startPos = currentHrp.Position
+                    local safePos = targetPos + Vector3.new(0, 2, 0)
+                    local finalCFrame = CFrame.new(safePos.X, safePos.Y, safePos.Z)
+                    if targetModel ~= currentTargetModel then
+                        currentTargetModel = targetModel
+                        local glideHeight = math.max(startPos.Y, safePos.Y) + 300
+                        local startCFrame = CFrame.new(startPos.X, startPos.Y, startPos.Z)
+                        local highMidCFrame = CFrame.new(safePos.X, glideHeight, safePos.Z)
+                        local dx = startPos.X - safePos.X
+                        local dz = startPos.Z - safePos.Z
+                        local horizontalDist = math.sqrt(dx * dx + dz * dz)
+                        local speed = 150
+                        local duration1 = math.max(horizontalDist / speed, 0.1)
+                        local startTime1 = os.clock()
+                        while UI.GetValue("wreck_on") and targetModel and targetModel.Parent do
+                            local rCheck, hrpCheck = isCharacterReady(player.Character)
+                            if not rCheck then break end
+                            local elapsed = os.clock() - startTime1
+                            local alpha = math.clamp(elapsed / duration1, 0, 1)
+                            hrpCheck.CFrame = startCFrame:Lerp(highMidCFrame, alpha)
+                            if alpha >= 1 then
+                                break
+                            end
+                            task.wait()
+                        end
+                        if not UI.GetValue("wreck_on") then continue end
+                        local descentDuration = 2.0
+                        local startTime2 = os.clock()
+                        while UI.GetValue("wreck_on") do
+                            local rCheck, hrpCheck = isCharacterReady(player.Character)
+                            if not rCheck then break end
+                            local elapsed = os.clock() - startTime2
+                            local alpha = math.clamp(elapsed / descentDuration, 0, 1)
+                            hrpCheck.CFrame = highMidCFrame:Lerp(finalCFrame, alpha)
+                            if alpha >= 1 then
+                                break
+                            end
+                            task.wait()
+                        end
+                    end
+                    if not UI.GetValue("wreck_on") then continue end
+                    local stayStartTime = os.clock()
+                    local stayDuration = 8.0
+                    while UI.GetValue("wreck_on") do
+                        local rCheck, hrpCheck = isCharacterReady(player.Character)
+                        if not rCheck then break end
+                        if os.clock() - stayStartTime >= stayDuration then
+                            table.insert(recentCleanedPositions, {pos = targetPos, time = os.clock()})
+                            visitedModels[targetModel] = true
+                            break
+                        end
+                        hrpCheck.CFrame = finalCFrame
+                        task.wait(0.5)
+                    end
+                    if currentTargetModel == targetModel then
+                        currentTargetModel = nil
+                    end
+                end
+            else
+                currentTargetModel = nil
+                task.wait(1)
+            end
+        else
+            task.wait(0.5)
+        end
+    end
+end)
+task.spawn(function()
+    local lastReset = os.clock()
+    while true do
+        if UI.GetValue("candy_on") then
+            local character = player.Character
+            local targetFolder = game.Workspace:FindFirstChild("LocalCandy2026")
+            if character and targetFolder then
+                local rootPart = character:FindFirstChild("HumanoidRootPart")
+                if rootPart then
+                    if os.clock() - lastReset >= 60 then
+                        rootPart.CFrame = CFrame.new(0, -500, 0)
+                        task.wait(3)
+                        lastReset = os.clock()
+                    else
+                        for _, itemName in ipairs(targetItems) do
+                            local targetModel = targetFolder:FindFirstChild(itemName)
+                            if targetModel then
+                                local targetPart = targetModel:FindFirstChildWhichIsA("BasePart", true)
+                                if targetPart then
+                                    rootPart.CFrame = targetPart.CFrame
+                                    candyCount = candyCount + 1
+                                    break
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            task.wait(0.5)
+        else
+            task.wait(0.5)
+        end
+    end
+end)
+task.spawn(function()
+    local lastBuy = 0
+    while true do
+        if UI.GetValue("bank_on") then
+            local freq = tonumber(UI.GetValue("bank_freq_val")) or 0
+            local amt = tonumber(UI.GetValue("bank_amt_val")) or 0
+            if freq > 0 and amt > 0 then
+                if os.clock() - lastBuy >= freq then
+                    BuyCoins:FireServer(amt, "Buy")
+                    lastBuy = os.clock()
+                end
+            end
+        end
+        task.wait(0.1)
+    end
+end)
