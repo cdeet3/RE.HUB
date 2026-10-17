@@ -3,6 +3,7 @@ local interfaceTrigger = replicatedStorage:WaitForChild("SharedPackage"):WaitFor
 local upgradeEvent = replicatedStorage:WaitForChild("SharedPackage"):WaitForChild("Packages"):WaitForChild("ControllerPackage"):WaitForChild("ReplicationController"):WaitForChild("RemoteEvents"):WaitForChild("Upgrade")
 local interfaceTeleport = replicatedStorage:WaitForChild("SharedPackage"):WaitForChild("Packages"):WaitForChild("ControllerPackage"):WaitForChild("ReplicationController"):WaitForChild("RemoteEvents"):WaitForChild("InterfaceTeleport")
 local BuyCoins = replicatedStorage:WaitForChild("SharedPackage"):WaitForChild("Packages"):WaitForChild("ControllerPackage"):WaitForChild("ReplicationController"):WaitForChild("RemoteEvents"):WaitForChild("CoinShop")
+local candapaloozaEvent = replicatedStorage:WaitForChild("SharedPackage"):WaitForChild("Packages"):WaitForChild("ControllerPackage"):WaitForChild("ReplicationController"):WaitForChild("RemoteEvents"):WaitForChild("Candapalooza")
 local player = game.Players.LocalPlayer
 local workspace = game:GetService("Workspace")
 local visitedModels = {}
@@ -89,8 +90,11 @@ local function findWreckModelAndPosition()
     return nil, nil
 end
 UI.AddTab("RE:HUB", function(tab)
-    local script1 = tab:Section("Auto Upgrade (REQUIRES HYBRID MODE!)", "Left")
+    local script1 = tab:Section("Auto Upgrade", "Left")
     script1:Tip("Select upgrades to run automatically. Avoid maxed level 10 upgrades.")
+    script1:Spacing()
+    script1:Spacing()
+    script1:Text("(REQUIRES HYBRID MODE!)")
     script1:Spacing()
     script1:Spacing()
     script1:Toggle("upg_on", "Enable auto upgrade", false, function(state)
@@ -104,12 +108,25 @@ UI.AddTab("RE:HUB", function(tab)
     script1:Toggle("upg_3", "CriticalMultiply", false)
     script1:Toggle("upg_4", "CriticalChance", false)
     script1:Toggle("upg_5", "HeadChance", false)
-    local script3 = tab:Section("Candy Farm", "Left")
-    script3:Tip("Teleports to candy buckets and pumpkins automatically.")
-    script3:Spacing()
-    script3:Spacing()
-    script3:Toggle("candy_on", "Enable candy farm", false)
-    script3:Keybind("candy_kb", 0, "toggle")
+    local script3 = tab:Section("Candy Events", "Left", {"Candy Farm", "Candapalooza"})
+    if script3.page == 0 then
+        script3:Tip("Automatically collects Candy Pails")
+        script3:Spacing()
+        script3:Spacing()
+        script3:Toggle("candy_on", "Enable candy farm", false)
+        script3:Keybind("candy_kb", 0, "toggle")
+    elseif script3.page == 1 then
+        script3:Tip("Automatically contributes candies to the candapalooza")
+        script3:Spacing()
+        script3:Spacing()
+        script3:Text("(REQUIRES HYBRID MODE!)")
+        script3:Spacing()
+        script3:Spacing()
+        script3:Toggle("canda_on", "Enable Candapalooza", false)
+        script3:Keybind("canda_kb", 0, "toggle")
+        script3:InputText("canda_freq_val", "Frequency (sec)", "0")
+        script3:InputText("canda_amt_val", "Amount", "0")
+    end
     local script2 = tab:Section("Auto Mine (WORK IN PROGRESS)", "Right")
     script2:Tip("Automatically teleports to and mines underwater rocks.")
     script2:Spacing()
@@ -125,6 +142,9 @@ UI.AddTab("RE:HUB", function(tab)
     script4:Tip("Automatically buys coins for your money to hide real money count.")
     script4:Spacing()
     script4:Spacing()
+    script4:Text("(REQUIRES HYBRID MODE!)")
+    script4:Spacing()
+    script4:Spacing()
     script4:Toggle("bank_on", "Enable Auto Bank", false)
     script4:Keybind("bank_kb", 0, "toggle")
     script4:InputText("bank_freq_val", "Frequency (sec)", "0")
@@ -138,6 +158,8 @@ UI.SetValue("upg_4", false)
 UI.SetValue("upg_5", false)
 UI.SetValue("bank_freq_val", "0")
 UI.SetValue("bank_amt_val", "0")
+UI.SetValue("canda_freq_val", "0")
+UI.SetValue("canda_amt_val", "0")
 local function isUpgOn()
     return (UI.GetValue("upg_on") == true) or (UI.GetValue("upg_kb") == true)
 end
@@ -149,6 +171,9 @@ local function isCandyOn()
 end
 local function isBankOn()
     return (UI.GetValue("bank_on") == true) or (UI.GetValue("bank_kb") == true)
+end
+local function isCandaOn()
+    return (UI.GetValue("canda_on") == true) or (UI.GetValue("canda_kb") == true)
 end
 task.spawn(function()
     local wasUpgEnabled = false
@@ -357,6 +382,22 @@ task.spawn(function()
                 if os.clock() - lastBuy >= freq then
                     BuyCoins:FireServer(amt, "Buy")
                     lastBuy = os.clock()
+                end
+            end
+        end
+        task.wait(0.1)
+    end
+end)
+task.spawn(function()
+    local lastCanda = 0
+    while true do
+        if isCandaOn() then
+            local freq = tonumber(UI.GetValue("canda_freq_val")) or 0
+            local amt = tonumber(UI.GetValue("canda_amt_val")) or 0
+            if freq > 0 and amt > 0 then
+                if os.clock() - lastCanda >= freq then
+                    candapaloozaEvent:FireServer("Contribute", amt)
+                    lastCanda = os.clock()
                 end
             end
         end
