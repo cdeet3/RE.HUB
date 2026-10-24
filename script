@@ -3,7 +3,6 @@ local interfaceTrigger = replicatedStorage:WaitForChild("SharedPackage"):WaitFor
 local upgradeEvent = replicatedStorage:WaitForChild("SharedPackage"):WaitForChild("Packages"):WaitForChild("ControllerPackage"):WaitForChild("ReplicationController"):WaitForChild("RemoteEvents"):WaitForChild("Upgrade")
 local interfaceTeleport = replicatedStorage:WaitForChild("SharedPackage"):WaitForChild("Packages"):WaitForChild("ControllerPackage"):WaitForChild("ReplicationController"):WaitForChild("RemoteEvents"):WaitForChild("InterfaceTeleport")
 local BuyCoins = replicatedStorage:WaitForChild("SharedPackage"):WaitForChild("Packages"):WaitForChild("ControllerPackage"):WaitForChild("ReplicationController"):WaitForChild("RemoteEvents"):WaitForChild("CoinShop")
-local candapaloozaEvent = replicatedStorage:WaitForChild("SharedPackage"):WaitForChild("Packages"):WaitForChild("ControllerPackage"):WaitForChild("ReplicationController"):WaitForChild("RemoteEvents"):WaitForChild("Candapalooza")
 local player = game.Players.LocalPlayer
 local workspace = game:GetService("Workspace")
 local visitedModels = {}
@@ -90,11 +89,8 @@ local function findWreckModelAndPosition()
     return nil, nil
 end
 UI.AddTab("RE:HUB", function(tab)
-    local script1 = tab:Section("Auto Upgrade", "Left")
+    local script1 = tab:Section("Auto Upgrade (REQUIRES HYBRID MODE!)", "Left")
     script1:Tip("Select upgrades to run automatically. Avoid maxed level 10 upgrades.")
-    script1:Text("(REQUIRES HYBRID MODE!)")
-    script1:Spacing()
-    script1:Spacing()
     script1:Toggle("upg_on", "Enable auto upgrade", false, function(state)
         if state then
             interfaceTrigger:FireServer("CoinUpgrade", "Cutscene-OFF")
@@ -106,27 +102,12 @@ UI.AddTab("RE:HUB", function(tab)
     script1:Toggle("upg_3", "CriticalMultiply", false)
     script1:Toggle("upg_4", "CriticalChance", false)
     script1:Toggle("upg_5", "HeadChance", false)
-    local script3 = tab:Section("Candy Events", "Left", {"Candy Farm", "Candapalooza"})
-    if script3.page == 0 then
-        script3:Tip("Automatically collects Candy Pails")
-        script3:Spacing()
-        script3:Spacing()
-        script3:Toggle("candy_on", "Enable candy farm", false)
-        script3:Keybind("candy_kb", 0, "toggle")
-    elseif script3.page == 1 then
-        script3:Tip("Automatically contributes candies to the candapalooza")
-        script3:Text("(REQUIRES HYBRID MODE!)")
-        script3:Spacing()
-        script3:Spacing()
-        script3:Toggle("canda_on", "Enable Candapalooza", false)
-        script3:Keybind("canda_kb", 0, "toggle")
-        script3:InputText("canda_freq_val", "Frequency (sec)", "0")
-        script3:InputText("canda_amt_val", "Amount", "0")
-    end
+    local script3 = tab:Section("Candy Farm", "Left")
+    script3:Tip("Automatically collects Candy Pails")
+    script3:Toggle("candy_on", "Enable candy farm", false)
+    script3:Keybind("candy_kb", 0, "toggle")
     local script2 = tab:Section("Auto Mine (WORK IN PROGRESS)", "Right")
     script2:Tip("Automatically teleports to and mines underwater rocks.")
-    script2:Spacing()
-    script2:Spacing()
     script2:Toggle("wreck_on", "Enable auto mine", false)
     script2:Keybind("wreck_kb", 0, "toggle")
     script2:Toggle("mine_tier1", "Tier 1", false)
@@ -136,9 +117,6 @@ UI.AddTab("RE:HUB", function(tab)
     script2:Toggle("mine_tier5", "Tier 5", false)
     local script4 = tab:Section("Auto Bank", "Right")
     script4:Tip("Automatically buys coins for your money to hide real money count.")
-    script4:Text("(REQUIRES HYBRID MODE!)")
-    script4:Spacing()
-    script4:Spacing()
     script4:Toggle("bank_on", "Enable Auto Bank", false)
     script4:Keybind("bank_kb", 0, "toggle")
     script4:InputText("bank_freq_val", "Frequency (sec)", "0")
@@ -152,34 +130,11 @@ UI.SetValue("upg_4", false)
 UI.SetValue("upg_5", false)
 UI.SetValue("bank_freq_val", "0")
 UI.SetValue("bank_amt_val", "0")
-UI.SetValue("canda_freq_val", "0")
-UI.SetValue("canda_amt_val", "0")
-local function isUpgOn()
-    return (UI.GetValue("upg_on") == true) or (UI.GetValue("upg_kb") == true)
-end
-local function isMineOn()
-    return (UI.GetValue("wreck_on") == true) or (UI.GetValue("wreck_kb") == true)
-end
-local function isCandyOn()
-    return (UI.GetValue("candy_on") == true) or (UI.GetValue("candy_kb") == true)
-end
-local function isBankOn()
-    return (UI.GetValue("bank_on") == true) or (UI.GetValue("bank_kb") == true)
-end
-local function isCandaOn()
-    return (UI.GetValue("canda_on") == true) or (UI.GetValue("canda_kb") == true)
-end
 task.spawn(function()
-    local wasUpgEnabled = false
     while true do
-        local currentUpg = isUpgOn()
-        if currentUpg and not wasUpgEnabled then
-            interfaceTrigger:FireServer("CoinUpgrade", "Cutscene-OFF")
-        end
-        wasUpgEnabled = currentUpg
-        if currentUpg then
+        if UI.GetValue("upg_on") then
             for i = 1, 5 do
-                if not isUpgOn() then break end
+                if not UI.GetValue("upg_on") then break end
                 if UI.GetValue("upg_" .. i) then
                     upgradeEvent:FireServer(i)
                 end
@@ -191,7 +146,7 @@ end)
 task.spawn(function()
     math.randomseed(math.floor(os.clock() * 100000))
     while true do
-        if isMineOn() or isCandyOn() then
+        if UI.GetValue("wreck_on") or UI.GetValue("candy_on") then
             local vk = MOVE_KEYS[math.random(1, #MOVE_KEYS)]
             tapKey(vk, PULSE_SECONDS)
         end
@@ -200,7 +155,7 @@ task.spawn(function()
 end)
 task.spawn(function()
     while true do
-        if isMineOn() then
+        if UI.GetValue("wreck_on") then
             local character = player.Character
             if character then
                 for _, part in pairs(character:GetDescendants()) do
@@ -219,7 +174,7 @@ task.spawn(function()
     local timeElapsed = 0
     while true do
         task.wait(1)
-        if isMineOn() then
+        if UI.GetValue("wreck_on") then
             timeElapsed = timeElapsed + 1
             if timeElapsed >= 600 then
                 visitedModels = {}
@@ -242,7 +197,7 @@ end)
 task.spawn(function()
     local needsWaypoint = true
     while true do
-        if isMineOn() then
+        if UI.GetValue("wreck_on") then
             local ready, hrp = isCharacterReady(player.Character)
             if not ready then
                 currentTargetModel = nil
@@ -250,7 +205,7 @@ task.spawn(function()
                 repeat
                     task.wait(0.5)
                     local r = isCharacterReady(player.Character)
-                until r or not isMineOn()
+                until r or not UI.GetValue("wreck_on")
                 task.wait(1.5)
                 continue
             end
@@ -279,7 +234,7 @@ task.spawn(function()
                         local speed = 150
                         local duration1 = math.max(horizontalDist / speed, 0.1)
                         local startTime1 = os.clock()
-                        while isMineOn() and targetModel and targetModel.Parent do
+                        while UI.GetValue("wreck_on") and targetModel and targetModel.Parent do
                             local rCheck, hrpCheck = isCharacterReady(player.Character)
                             if not rCheck then break end
                             local elapsed = os.clock() - startTime1
@@ -290,10 +245,10 @@ task.spawn(function()
                             end
                             task.wait()
                         end
-                        if not isMineOn() then continue end
+                        if not UI.GetValue("wreck_on") then continue end
                         local descentDuration = 2.0
                         local startTime2 = os.clock()
-                        while isMineOn() do
+                        while UI.GetValue("wreck_on") do
                             local rCheck, hrpCheck = isCharacterReady(player.Character)
                             if not rCheck then break end
                             local elapsed = os.clock() - startTime2
@@ -305,10 +260,10 @@ task.spawn(function()
                             task.wait()
                         end
                     end
-                    if not isMineOn() then continue end
+                    if not UI.GetValue("wreck_on") then continue end
                     local stayStartTime = os.clock()
                     local stayDuration = 8.0
-                    while isMineOn() do
+                    while UI.GetValue("wreck_on") do
                         local rCheck, hrpCheck = isCharacterReady(player.Character)
                         if not rCheck then break end
                         if os.clock() - stayStartTime >= stayDuration then
@@ -335,7 +290,7 @@ end)
 task.spawn(function()
     local lastReset = os.clock()
     while true do
-        if isCandyOn() then
+        if UI.GetValue("candy_on") then
             local character = player.Character
             local targetFolder = game.Workspace:FindFirstChild("LocalCandy2026")
             if character and targetFolder then
@@ -349,26 +304,13 @@ task.spawn(function()
                         for _, itemName in ipairs(targetItems) do
                             local targetModel = targetFolder:FindFirstChild(itemName)
                             if targetModel then
-                                local teleported = false
-                                if targetModel:IsA("BasePart") then
-                                    local success, cf = pcall(function() return targetModel.CFrame end)
+                                local targetPart = targetModel:IsA("BasePart") and targetModel or targetModel:FindFirstChildWhichIsA("BasePart", true)
+                                if targetPart then
+                                    local success, cf = pcall(function() return targetPart.CFrame end)
                                     if success and cf then
                                         rootPart.CFrame = cf
                                         candyCount = candyCount + 1
-                                        teleported = true
-                                    end
-                                end
-                                if not teleported then
-                                    for _, part in ipairs(targetModel:GetDescendants()) do
-                                        if part:IsA("BasePart") then
-                                            local success, cf = pcall(function() return part.CFrame end)
-                                            if success and cf then
-                                                rootPart.CFrame = cf
-                                                candyCount = candyCount + 1
-                                                teleported = true
-                                                break
-                                            end
-                                        end
+                                        break
                                     end
                                 end
                             end
@@ -385,29 +327,13 @@ end)
 task.spawn(function()
     local lastBuy = 0
     while true do
-        if isBankOn() then
+        if UI.GetValue("bank_on") then
             local freq = tonumber(UI.GetValue("bank_freq_val")) or 0
             local amt = tonumber(UI.GetValue("bank_amt_val")) or 0
             if freq > 0 and amt > 0 then
                 if os.clock() - lastBuy >= freq then
                     BuyCoins:FireServer(amt, "Buy")
                     lastBuy = os.clock()
-                end
-            end
-        end
-        task.wait(0.1)
-    end
-end)
-task.spawn(function()
-    local lastCanda = 0
-    while true do
-        if isCandaOn() then
-            local freq = tonumber(UI.GetValue("canda_freq_val")) or 0
-            local amt = tonumber(UI.GetValue("canda_amt_val")) or 0
-            if freq > 0 and amt > 0 then
-                if os.clock() - lastCanda >= freq then
-                    candapaloozaEvent:FireServer("Contribute", amt)
-                    lastCanda = os.clock()
                 end
             end
         end
