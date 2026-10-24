@@ -11,7 +11,7 @@ local recentCleanedPositions = {}
 local currentTargetModel = nil
 local PULSE_SECONDS = 0.02
 local MOVE_KEYS = {0x57, 0x41, 0x53, 0x44}
-local targetItems = {"CandyCrate", "SmashablePumpkin"}
+local targetItems = {"CandyCrate", "SmashablePumpkin", "CandyBowl"}
 local candyCount = 0
 local function tapKey(vk, seconds)
     pcall(keypress, vk)
