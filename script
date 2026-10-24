@@ -108,7 +108,7 @@ UI.AddTab("RE:HUB", function(tab)
     script1:Toggle("upg_5", "HeadChance", false)
     local script3 = tab:Section("Candy Events", "Left", {"Candy Farm", "Candapalooza"})
     if script3.page == 0 then
-        script3:Tip("Teleports to candy buckets and pumpkins automatically.")
+        script3:Tip("Automatically collects Candy Pails")
         script3:Spacing()
         script3:Spacing()
         script3:Toggle("candy_on", "Enable candy farm", false)
