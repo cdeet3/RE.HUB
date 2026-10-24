@@ -11,7 +11,6 @@ local recentCleanedPositions = {}
 local currentTargetModel = nil
 local PULSE_SECONDS = 0.02
 local MOVE_KEYS = {0x57, 0x41, 0x53, 0x44}
-local targetItems = {"CandyCrate", "SmashablePumpkin"}
 local candyCount = 0
 local function tapKey(vk, seconds)
     pcall(keypress, vk)
@@ -92,8 +91,6 @@ end
 UI.AddTab("RE:HUB", function(tab)
     local script1 = tab:Section("Auto Upgrade", "Left")
     script1:Tip("Select upgrades to run automatically. Avoid maxed level 10 upgrades.")
-    script1:Spacing()
-    script1:Spacing()
     script1:Text("(REQUIRES HYBRID MODE!)")
     script1:Spacing()
     script1:Spacing()
@@ -110,15 +107,13 @@ UI.AddTab("RE:HUB", function(tab)
     script1:Toggle("upg_5", "HeadChance", false)
     local script3 = tab:Section("Candy Events", "Left", {"Candy Farm", "Candapalooza"})
     if script3.page == 0 then
-        script3:Tip("Automatically collects Candy Pails")
+        script3:Tip("Teleports to candy buckets and pumpkins automatically.")
         script3:Spacing()
         script3:Spacing()
         script3:Toggle("candy_on", "Enable candy farm", false)
         script3:Keybind("candy_kb", 0, "toggle")
     elseif script3.page == 1 then
         script3:Tip("Automatically contributes candies to the candapalooza")
-        script3:Spacing()
-        script3:Spacing()
         script3:Text("(REQUIRES HYBRID MODE!)")
         script3:Spacing()
         script3:Spacing()
@@ -140,8 +135,6 @@ UI.AddTab("RE:HUB", function(tab)
     script2:Toggle("mine_tier5", "Tier 5", false)
     local script4 = tab:Section("Auto Bank", "Right")
     script4:Tip("Automatically buys coins for your money to hide real money count.")
-    script4:Spacing()
-    script4:Spacing()
     script4:Text("(REQUIRES HYBRID MODE!)")
     script4:Spacing()
     script4:Spacing()
@@ -352,15 +345,12 @@ task.spawn(function()
                         task.wait(3)
                         lastReset = os.clock()
                     else
-                        for _, itemName in ipairs(targetItems) do
-                            local targetModel = targetFolder:FindFirstChild(itemName)
-                            if targetModel then
-                                local targetPart = targetModel:FindFirstChildWhichIsA("BasePart", true)
-                                if targetPart then
-                                    rootPart.CFrame = targetPart.CFrame
-                                    candyCount = candyCount + 1
-                                    break
-                                end
+                        for _, targetModel in ipairs(targetFolder:GetChildren()) do
+                            local targetPart = targetModel:IsA("BasePart") and targetModel or targetModel:FindFirstChildWhichIsA("BasePart", true)
+                            if targetPart then
+                                rootPart.CFrame = targetPart.CFrame
+                                candyCount = candyCount + 1
+                                break
                             end
                         end
                     end
