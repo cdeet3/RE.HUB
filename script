@@ -348,9 +348,12 @@ task.spawn(function()
                         for _, targetModel in ipairs(targetFolder:GetChildren()) do
                             local targetPart = targetModel:IsA("BasePart") and targetModel or targetModel:FindFirstChildWhichIsA("BasePart", true)
                             if targetPart then
-                                rootPart.CFrame = targetPart.CFrame
-                                candyCount = candyCount + 1
-                                break
+                                local success, cf = pcall(function() return targetPart.CFrame end)
+                                if success and cf then
+                                    rootPart.CFrame = cf
+                                    candyCount = candyCount + 1
+                                    break
+                                end
                             end
                         end
                     end
