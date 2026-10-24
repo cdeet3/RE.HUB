@@ -338,15 +338,22 @@ task.spawn(function()
         if isCandyOn() then
             local character = player.Character
             local targetFolder = game.Workspace:FindFirstChild("LocalCandy2026")
+            if not targetFolder then
+                print("[Candy Farm] Folder LocalCandy2026 not found in Workspace")
+            end
             if character and targetFolder then
                 local rootPart = character:FindFirstChild("HumanoidRootPart")
                 if rootPart then
                     if os.clock() - lastReset >= 60 then
+                        print("[Candy Farm] Resetting position")
                         rootPart.CFrame = CFrame.new(0, -500, 0)
                         task.wait(3)
                         lastReset = os.clock()
                     else
-                        for _, targetModel in ipairs(targetFolder:GetChildren()) do
+                        local children = targetFolder:GetChildren()
+                        print("[Candy Farm] Found " .. #children .. " total items in folder")
+                        local foundAny = false
+                        for _, targetModel in ipairs(children) do
                             local isTarget = false
                             for _, itemName in ipairs(targetItems) do
                                 if targetModel.Name == itemName then
@@ -355,21 +362,32 @@ task.spawn(function()
                                 end
                             end
                             if isTarget then
+                                foundAny = true
                                 local targetPart = targetModel:IsA("BasePart") and targetModel or targetModel:FindFirstChildWhichIsA("BasePart", true)
                                 if targetPart then
                                     local success, cf = pcall(function() return targetPart.CFrame end)
                                     if success and cf then
+                                        print("[Candy Farm] Teleporting to " .. targetModel.Name)
                                         rootPart.CFrame = cf
                                         candyCount = candyCount + 1
                                         break
+                                    else
+                                        print("[Candy Farm] Failed to read CFrame for " .. targetModel.Name)
                                     end
+                                else
+                                    print("[Candy Farm] No BasePart found inside " .. targetModel.Name)
                                 end
                             end
                         end
+                        if not foundAny then
+                            print("[Candy Farm] No matching target items found")
+                        end
                     end
+                else
+                    print("[Candy Farm] HumanoidRootPart not found")
                 end
             end
-            task.wait(0.5)
+            task.wait(2)
         else
             task.wait(0.5)
         end
