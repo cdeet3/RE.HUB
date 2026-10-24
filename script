@@ -346,9 +346,15 @@ task.spawn(function()
                         task.wait(3)
                         lastReset = os.clock()
                     else
-                        for _, itemName in ipairs(targetItems) do
-                            local targetModel = targetFolder:FindFirstChild(itemName)
-                            if targetModel then
+                        for _, targetModel in ipairs(targetFolder:GetChildren()) do
+                            local isTarget = false
+                            for _, itemName in ipairs(targetItems) do
+                                if targetModel.Name == itemName then
+                                    isTarget = true
+                                    break
+                                end
+                            end
+                            if isTarget then
                                 local targetPart = targetModel:IsA("BasePart") and targetModel or targetModel:FindFirstChildWhichIsA("BasePart", true)
                                 if targetPart then
                                     local success, cf = pcall(function() return targetPart.CFrame end)
