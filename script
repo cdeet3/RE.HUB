@@ -334,24 +334,29 @@ task.spawn(function()
 end)
 task.spawn(function()
     local lastReset = os.clock()
+    local lastNotify = 0
     while true do
         if isCandyOn() then
             local character = player.Character
             local targetFolder = game.Workspace:FindFirstChild("LocalCandy2026")
-            if not targetFolder then
-                print("[Candy Farm] Folder LocalCandy2026 not found in Workspace")
+            if os.clock() - lastNotify >= 3 then
+                if not targetFolder then
+                    notify("LocalCandy2026 folder NOT found!", "Candy Debug", 3)
+                else
+                    notify("Folder found, checking items...", "Candy Debug", 3)
+                end
+                lastNotify = os.clock()
             end
             if character and targetFolder then
                 local rootPart = character:FindFirstChild("HumanoidRootPart")
                 if rootPart then
                     if os.clock() - lastReset >= 60 then
-                        print("[Candy Farm] Resetting position")
+                        notify("Resetting character position", "Candy Debug", 3)
                         rootPart.CFrame = CFrame.new(0, -500, 0)
                         task.wait(3)
                         lastReset = os.clock()
                     else
                         local children = targetFolder:GetChildren()
-                        print("[Candy Farm] Found " .. #children .. " total items in folder")
                         local foundAny = false
                         for _, targetModel in ipairs(children) do
                             local isTarget = false
@@ -367,24 +372,18 @@ task.spawn(function()
                                 if targetPart then
                                     local success, cf = pcall(function() return targetPart.CFrame end)
                                     if success and cf then
-                                        print("[Candy Farm] Teleporting to " .. targetModel.Name)
+                                        notify("Teleporting to " .. targetModel.Name, "Candy Debug", 2)
                                         rootPart.CFrame = cf
                                         candyCount = candyCount + 1
                                         break
-                                    else
-                                        print("[Candy Farm] Failed to read CFrame for " .. targetModel.Name)
                                     end
-                                else
-                                    print("[Candy Farm] No BasePart found inside " .. targetModel.Name)
                                 end
                             end
                         end
-                        if not foundAny then
-                            print("[Candy Farm] No matching target items found")
+                        if not foundAny and os.clock() - lastNotify >= 3 then
+                            notify("No matching candy items found", "Candy Debug", 3)
                         end
                     end
-                else
-                    print("[Candy Farm] HumanoidRootPart not found")
                 end
             end
             task.wait(2)
