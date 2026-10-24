@@ -10,8 +10,9 @@ local recentCleanedPositions = {}
 local currentTargetModel = nil
 local PULSE_SECONDS = 0.02
 local MOVE_KEYS = {0x57, 0x41, 0x53, 0x44}
-local targetItems = {"CandyCrate", "SmashablePumpkin", "CandyBowl"}
+local targetItems = {"CandyBowl", "CandyBag", "SmashablePumpkin", "CandyCrate"}
 local candyCount = 0
+local Keybinds = {}
 local function tapKey(vk, seconds)
     pcall(keypress, vk)
     task.wait(seconds)
@@ -91,25 +92,30 @@ end
 UI.AddTab("RE:HUB", function(tab)
     local script1 = tab:Section("Auto Upgrade (REQUIRES HYBRID MODE!)", "Left")
     script1:Tip("Select upgrades to run automatically. Avoid maxed level 10 upgrades.")
-    script1:Toggle("upg_on", "Enable auto upgrade", false, function(state)
-        if state then
-            interfaceTrigger:FireServer("CoinUpgrade", "Cutscene-OFF")
-        end
-    end)
-    script1:Keybind("upg_kb", 0, "toggle")
+    script1:Spacing()
+    script1:Spacing()
+    script1:Toggle("upg_on", "Enable auto upgrade", false)
+    Keybinds.upg = script1:Keybind("upg_kb", 0, "toggle")
     script1:Toggle("upg_1", "MoneyEarn", false)
     script1:Toggle("upg_2", "FlipSpeed", false)
     script1:Toggle("upg_3", "CriticalMultiply", false)
     script1:Toggle("upg_4", "CriticalChance", false)
     script1:Toggle("upg_5", "HeadChance", false)
-    local script3 = tab:Section("Candy Farm", "Left")
-    script3:Tip("Automatically collects Candy Pails")
-    script3:Toggle("candy_on", "Enable candy farm", false)
-    script3:Keybind("candy_kb", 0, "toggle")
+    local script3 = tab:Section("Candy Farm", "Left", {"Candy Farm", "Candapalooza"})
+    if script3.page == 0 then
+        script3:Tip("Teleports to candy buckets and pumpkins automatically.")
+        script3:Spacing()
+        script3:Spacing()
+        script3:Toggle("candy_on", "Enable candy farm", false)
+        Keybinds.candy = script3:Keybind("candy_kb", 0, "toggle")
+    elseif script3.page == 1 then
+    end
     local script2 = tab:Section("Auto Mine (WORK IN PROGRESS)", "Right")
     script2:Tip("Automatically teleports to and mines underwater rocks.")
+    script2:Spacing()
+    script2:Spacing()
     script2:Toggle("wreck_on", "Enable auto mine", false)
-    script2:Keybind("wreck_kb", 0, "toggle")
+    Keybinds.wreck = script2:Keybind("wreck_kb", 0, "toggle")
     script2:Toggle("mine_tier1", "Tier 1", false)
     script2:Toggle("mine_tier2", "Tier 2", false)
     script2:Toggle("mine_tier3", "Tier 3", false)
@@ -117,8 +123,10 @@ UI.AddTab("RE:HUB", function(tab)
     script2:Toggle("mine_tier5", "Tier 5", false)
     local script4 = tab:Section("Auto Bank", "Right")
     script4:Tip("Automatically buys coins for your money to hide real money count.")
+    script4:Spacing()
+    script4:Spacing()
     script4:Toggle("bank_on", "Enable Auto Bank", false)
-    script4:Keybind("bank_kb", 0, "toggle")
+    Keybinds.bank = script4:Keybind("bank_kb", 0, "toggle")
     script4:InputText("bank_freq_val", "Frequency (sec)", "0")
     script4:InputText("bank_amt_val", "Amount", "0")
 end)
@@ -130,11 +138,21 @@ UI.SetValue("upg_4", false)
 UI.SetValue("upg_5", false)
 UI.SetValue("bank_freq_val", "0")
 UI.SetValue("bank_amt_val", "0")
+local function isUpgOn() return UI.GetValue("upg_on") or (Keybinds.upg and Keybinds.upg.value) end
+local function isMineOn() return UI.GetValue("wreck_on") or (Keybinds.wreck and Keybinds.wreck.value) end
+local function isCandyOn() return UI.GetValue("candy_on") or (Keybinds.candy and Keybinds.candy.value) end
+local function isBankOn() return UI.GetValue("bank_on") or (Keybinds.bank and Keybinds.bank.value) end
 task.spawn(function()
+    local wasUpgEnabled = false
     while true do
-        if UI.GetValue("upg_on") then
+        local currentUpg = isUpgOn()
+        if currentUpg and not wasUpgEnabled then
+            interfaceTrigger:FireServer("CoinUpgrade", "Cutscene-OFF")
+        end
+        wasUpgEnabled = currentUpg
+        if currentUpg then
             for i = 1, 5 do
-                if not UI.GetValue("upg_on") then break end
+                if not isUpgOn() then break end
                 if UI.GetValue("upg_" .. i) then
                     upgradeEvent:FireServer(i)
                 end
@@ -146,7 +164,7 @@ end)
 task.spawn(function()
     math.randomseed(math.floor(os.clock() * 100000))
     while true do
-        if UI.GetValue("wreck_on") or UI.GetValue("candy_on") then
+        if isMineOn() or isCandyOn() then
             local vk = MOVE_KEYS[math.random(1, #MOVE_KEYS)]
             tapKey(vk, PULSE_SECONDS)
         end
@@ -155,7 +173,7 @@ task.spawn(function()
 end)
 task.spawn(function()
     while true do
-        if UI.GetValue("wreck_on") then
+        if isMineOn() then
             local character = player.Character
             if character then
                 for _, part in pairs(character:GetDescendants()) do
@@ -174,7 +192,7 @@ task.spawn(function()
     local timeElapsed = 0
     while true do
         task.wait(1)
-        if UI.GetValue("wreck_on") then
+        if isMineOn() then
             timeElapsed = timeElapsed + 1
             if timeElapsed >= 600 then
                 visitedModels = {}
@@ -197,7 +215,7 @@ end)
 task.spawn(function()
     local needsWaypoint = true
     while true do
-        if UI.GetValue("wreck_on") then
+        if isMineOn() then
             local ready, hrp = isCharacterReady(player.Character)
             if not ready then
                 currentTargetModel = nil
@@ -205,7 +223,7 @@ task.spawn(function()
                 repeat
                     task.wait(0.5)
                     local r = isCharacterReady(player.Character)
-                until r or not UI.GetValue("wreck_on")
+                until r or not isMineOn()
                 task.wait(1.5)
                 continue
             end
@@ -234,7 +252,7 @@ task.spawn(function()
                         local speed = 150
                         local duration1 = math.max(horizontalDist / speed, 0.1)
                         local startTime1 = os.clock()
-                        while UI.GetValue("wreck_on") and targetModel and targetModel.Parent do
+                        while isMineOn() and targetModel and targetModel.Parent do
                             local rCheck, hrpCheck = isCharacterReady(player.Character)
                             if not rCheck then break end
                             local elapsed = os.clock() - startTime1
@@ -245,10 +263,10 @@ task.spawn(function()
                             end
                             task.wait()
                         end
-                        if not UI.GetValue("wreck_on") then continue end
+                        if not isMineOn() then continue end
                         local descentDuration = 2.0
                         local startTime2 = os.clock()
-                        while UI.GetValue("wreck_on") do
+                        while isMineOn() do
                             local rCheck, hrpCheck = isCharacterReady(player.Character)
                             if not rCheck then break end
                             local elapsed = os.clock() - startTime2
@@ -260,10 +278,10 @@ task.spawn(function()
                             task.wait()
                         end
                     end
-                    if not UI.GetValue("wreck_on") then continue end
+                    if not isMineOn() then continue end
                     local stayStartTime = os.clock()
                     local stayDuration = 8.0
-                    while UI.GetValue("wreck_on") do
+                    while isMineOn() do
                         local rCheck, hrpCheck = isCharacterReady(player.Character)
                         if not rCheck then break end
                         if os.clock() - stayStartTime >= stayDuration then
@@ -290,7 +308,7 @@ end)
 task.spawn(function()
     local lastReset = os.clock()
     while true do
-        if UI.GetValue("candy_on") then
+        if isCandyOn() then
             local character = player.Character
             local targetFolder = game.Workspace:FindFirstChild("LocalCandy2026")
             if character and targetFolder then
@@ -304,14 +322,11 @@ task.spawn(function()
                         for _, itemName in ipairs(targetItems) do
                             local targetModel = targetFolder:FindFirstChild(itemName)
                             if targetModel then
-                                local targetPart = targetModel:IsA("BasePart") and targetModel or targetModel:FindFirstChildWhichIsA("BasePart", true)
+                                local targetPart = targetModel:FindFirstChildWhichIsA("BasePart", true)
                                 if targetPart then
-                                    local success, cf = pcall(function() return targetPart.CFrame end)
-                                    if success and cf then
-                                        rootPart.CFrame = cf
-                                        candyCount = candyCount + 1
-                                        break
-                                    end
+                                    rootPart.CFrame = targetPart.CFrame
+                                    candyCount = candyCount + 1
+                                    break
                                 end
                             end
                         end
@@ -327,7 +342,7 @@ end)
 task.spawn(function()
     local lastBuy = 0
     while true do
-        if UI.GetValue("bank_on") then
+        if isBankOn() then
             local freq = tonumber(UI.GetValue("bank_freq_val")) or 0
             local amt = tonumber(UI.GetValue("bank_amt_val")) or 0
             if freq > 0 and amt > 0 then
