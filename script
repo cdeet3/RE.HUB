@@ -368,7 +368,17 @@ task.spawn(function()
                             end
                             if isTarget then
                                 foundAny = true
-                                local targetPart = targetModel:IsA("BasePart") and targetModel or targetModel:FindFirstChildWhichIsA("BasePart", true)
+                                local targetPart = nil
+                                if targetModel:IsA("BasePart") then
+                                    targetPart = targetModel
+                                else
+                                    for _, p in ipairs(targetModel:GetDescendants()) do
+                                        if p:IsA("BasePart") then
+                                            targetPart = p
+                                            break
+                                        end
+                                    end
+                                end
                                 if targetPart then
                                     local success, cf = pcall(function() return targetPart.CFrame end)
                                     if success and cf then
