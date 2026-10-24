@@ -11,6 +11,7 @@ local recentCleanedPositions = {}
 local currentTargetModel = nil
 local PULSE_SECONDS = 0.02
 local MOVE_KEYS = {0x57, 0x41, 0x53, 0x44}
+local targetItems = {"SmashablePumpkin", "CandyCrate", "CandyBowl"}
 local candyCount = 0
 local function tapKey(vk, seconds)
     pcall(keypress, vk)
@@ -345,14 +346,17 @@ task.spawn(function()
                         task.wait(3)
                         lastReset = os.clock()
                     else
-                        for _, targetModel in ipairs(targetFolder:GetChildren()) do
-                            local targetPart = targetModel:IsA("BasePart") and targetModel or targetModel:FindFirstChildWhichIsA("BasePart", true)
-                            if targetPart then
-                                local success, cf = pcall(function() return targetPart.CFrame end)
-                                if success and cf then
-                                    rootPart.CFrame = cf
-                                    candyCount = candyCount + 1
-                                    break
+                        for _, itemName in ipairs(targetItems) do
+                            local targetModel = targetFolder:FindFirstChild(itemName)
+                            if targetModel then
+                                local targetPart = targetModel:IsA("BasePart") and targetModel or targetModel:FindFirstChildWhichIsA("BasePart", true)
+                                if targetPart then
+                                    local success, cf = pcall(function() return targetPart.CFrame end)
+                                    if success and cf then
+                                        rootPart.CFrame = cf
+                                        candyCount = candyCount + 1
+                                        break
+                                    end
                                 end
                             end
                         end
